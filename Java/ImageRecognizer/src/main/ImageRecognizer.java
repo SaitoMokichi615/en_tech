@@ -45,6 +45,19 @@ public class ImageRecognizer {
         Mnist testData = new Mnist("TEST", iteration);
         int count = 0;
         
+        /*for(int k=0; k<Mnist.NUM_TEST_DATA; k+=Mnist.BATCH_SIZE){
+            Mnist testData = new Mnist("TEST", k);
+            Matrix X = testData.createImagesBatchData();
+            Matrix Y = net.feedForward(X);
+            Matrix T = testData.createLabelsBatchData();
+            
+            for(int n=0; n<Mnist.BATCH_SIZE; n++){
+                if(Y.getRowVec(n).getIndexOfMaxEement()==T.getRowVec(n).getIndexOfMaxEement()){
+                    count++;
+                }
+            }
+        }*/
+        
         //テストデータの数だけ以下の処理を実行
         for(int n=0; n<Mnist.NUM_TEST_DATA; n++){
             

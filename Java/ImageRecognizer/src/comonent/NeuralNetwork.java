@@ -20,6 +20,10 @@ public class NeuralNetwork {
     private ArrayList<Matrix> varForWeightList;     //重みのパラメータ更新式で用いる変数を格納するリスト
     private ArrayList<Matrix> varForBiasList;       //バイアスのパラメータ更新式で用いる変数を格納するリスト
     
+    private ArrayList<Matrix> bnGammaList;
+    private ArrayList<Matrix> bnBetaList;
+    private ArrayList<Matrix> normalizedWeightedSumList;
+    
     //private long dropOutSeed; //ドロップアウトするニューロンを決定するためのシード
     
     /**
@@ -35,6 +39,9 @@ public class NeuralNetwork {
         gradLossBiasList = new ArrayList<>();
         varForWeightList = new ArrayList<>();
         varForBiasList = new ArrayList<>();
+        bnGammaList = new ArrayList<>();
+        bnBetaList = new ArrayList<>();
+        normalizedWeightedSumList = new ArrayList<>();
         //可変長引数の数から層数を計算（0から数える）
         numLayers = numLayer.length-1;
         InitParameters(numLayer); 
@@ -66,10 +73,21 @@ public class NeuralNetwork {
             varForWeightList.add(Matrix.scaler(0, W));
             varForBiasList.add(Matrix.scaler(0, b));
             
+            //BatchNormalizationで使う変数を初期化
+            double[][] index = new double[1][b.getNumCol()];
+            for(int i=0; i<index[0].length; i++){
+                index[0][i] = 1;
+            }
+            Matrix initGamma = new Matrix(index);
+            bnGammaList.add(initGamma);
+            bnBetaList.add(Matrix.scaler(0, b));
+            
             weightedSumList.add(null);
             activatedList.add(null);
             gradLossWeightList.add(null);
             gradLossBiasList.add(null);
+            
+            normalizedWeightedSumList.add(null);
         }
     }
     
@@ -93,6 +111,9 @@ public class NeuralNetwork {
             Matrix A =Matrix.add(Matrix.mult(Z, W), B);
             
             if(n<numLayers-1){//隠れ層ではReLU関数で変換する
+                //Matrix An = this.BatchNormalization(A, bnGammaList.get(n), bnBetaList.get(n));
+                //Z = An.relu();
+                //normalizedWeightedSumList.set(n, An);
                 Z = A.relu();
                 
                 //Z = Z.dropOut(dropOutSeed);
@@ -101,6 +122,7 @@ public class NeuralNetwork {
                 //System.out.println("dropOutSeed"+dropOutSeed);
             }
             else{//出力層ではソフトマックス関数で変換する
+                //System.out.println("A\n"+A);
                 Z = A.softmax();
             }
             
@@ -186,6 +208,32 @@ public class NeuralNetwork {
         }
         return new Matrix(A.getNumRow(), A.getNumCol(), deltaList);
     }
+    
+    /**
+     * ミニバッチの要素が、平均0、分散1になるように正規化する
+     * @param A
+     * @return 
+     */
+    private Matrix BatchNormalization(Matrix A, Matrix Gamma, Matrix Beta){
+        Matrix mu = Matrix.scaler(1.0/A.getNumRow(), A.colAxisSum());   //平均μを計算
+        
+        //分散σ^2を計算
+        Matrix Mu = Matrix.scaler(-1.0, mu).createBatchVerBias(A.getNumRow());
+        Matrix Ac = Matrix.add(A, Mu);//x-μを計算
+        Matrix Ac2 = Matrix.multEntrywise(Ac, Ac);
+        Matrix var = Matrix.scaler(1.0/A.getNumRow(), Ac2.colAxisSum());
+        
+        //標準偏差√σ^2+εを計算
+        for(int j=0;j<var.getNumCol(); j++){
+            var = var.addElement(0, j, 10e-7);
+        }
+        Matrix std = Matrix.sqrt(var);
+        
+        //ミニバッチの要素を標準化
+        Matrix An = Matrix.divEntrywise(Ac, std.createBatchVerBias(Ac.getNumRow()));
+        Matrix Y = Matrix.add(Matrix.multEntrywise(An, Gamma.createBatchVerBias(A.getNumRow())), Beta.createBatchVerBias(A.getNumRow()));
+        return Y;
+    } 
     
     /**
      * 誤差逆伝播法で学習パラメータに関する誤差の勾配を計算
@@ -423,12 +471,12 @@ public class NeuralNetwork {
         double loss = net.crossEntropyError(Y, T);
         System.out.println("loss:"+loss);
         
-        /*
+        
         System.out.println("numuricalGrad");
         net.numricalGrad(X, T);
         net.showParameters();
-        */
-        for(int k=0; k<1000; k++){
+        
+        for(int k=0; k<10; k++){
             System.out.println("backPropargation");
             net.backPropagation(Y, T);
             net.SGD();
@@ -437,5 +485,11 @@ public class NeuralNetwork {
             loss = net.crossEntropyError(Y, T);
             System.out.println("loss:"+loss);
         }
+        
+        double[][] m = {{1,2,3,4},{4,5,6,8},{9,10,11,12}};
+        Matrix P = new Matrix(m);
+        System.out.println(net.bnGammaList.get(0));
+        Matrix Mu = net.BatchNormalization(P, net.bnGammaList.get(0), net.bnBetaList.get(0));
+        System.out.println(Mu);
     }
 }

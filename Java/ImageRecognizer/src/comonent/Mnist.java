@@ -34,7 +34,8 @@ public class Mnist {
     public static final int SIZE_IMAGE = 28;    //画像の大きさ
     public static final int EPOCH = NUM_TRAIN_DATA/BATCH_SIZE;  //エポック数
     private static final int MAX_PIXELS_VALUE = 255;   //画素値の最大値（正規化に使用）
-    private long seed;   //画像データを取得する際のシード（学習のイテレーションを入力）
+    private long seed;              //画像データを取得する際のシード（学習のイテレーションを入力）
+    private boolean readTestFlaf;   //テストデータの前半・後半いずれを読み込むか決定するフラグ
     
     /**
      * 画像データの初期化
@@ -53,7 +54,7 @@ public class Mnist {
                 
                 this.seed = seed;//シードを取得
                 getRandomlyIndex();//バッチサイズ分、ランダムに画像データのインデックスを取得
-                getImageDataFromDataBase();
+                getImageDataFromDataBase("train");
                 //readPixelsData();//取得したインデックスに対応する画像データを読み込む
                 //readLabelsData();//取得したインデックスに対応する正解ラベルを読み込む
                 break;
@@ -61,6 +62,9 @@ public class Mnist {
             case "TEST":
                 pixelsFileName = "t10k-images-idx3-ubyte.gz";
                 labelsFileName = "t10k-labels-idx1-ubyte.gz";
+                
+                /*indexList = IntStream.range((int)seed, (int)seed+Mnist.BATCH_SIZE).toArray();
+                getImageDataFromDataBase("test");*/
                 indexList = IntStream.range(0, NUM_TEST_DATA).toArray();
                 readPixelsData();//画像データを読み込む
                 readLabelsData();//正解ラベルを読み込む
@@ -310,11 +314,11 @@ public class Mnist {
      * 訓練データから指定したインデックスの画像データを選択するSQL文
      * @return 
      */
-    private String createSelectSQL(){
+    private String createSelectSQL(String tableName){
         StringBuilder sb = new StringBuilder();
         Random rnd = new Random();
         
-        sb.append("SELECT * FROM train WHERE ");
+        sb.append("SELECT * FROM ").append(tableName).append(" WHERE ");
         for(int n=0; n<indexList.length; n++){
             sb.append("n=").append(indexList[n]);
             if(n!=indexList.length-1){
@@ -330,7 +334,7 @@ public class Mnist {
     /**
      * データベースからランダムに画像データを読み込む
      */
-    private void getImageDataFromDataBase(){
+    private void getImageDataFromDataBase(String tableName){
        Connection con = null;
     
         try{
@@ -338,11 +342,12 @@ public class Mnist {
             //System.out.println("MySQLに接続しました");
             Statement stmt = con.createStatement();
                 
-            String sql = createSelectSQL();
+            String sql = createSelectSQL(tableName);
             ResultSet rs = stmt.executeQuery(sql);
                 
             while(rs.next()){//取得したレコードの末尾まで以下の処理を繰り返す
                 int label = rs.getInt("t");     //ラベルデータを読み込む
+                //System.out.println(rs.getInt("n")+"番目のデータを取得");
                 double[] oneHot = new double[NUM_CLASS];    //ラベルをベクトル(one-hot)で表す
                 oneHot[label] = 1.0;
                 for(double value : oneHot){//リストに生成したラベルベクトルの要素を追加
@@ -407,11 +412,11 @@ public class Mnist {
     
     
     public static void main(String args[]){
-        Mnist mnist = new Mnist("TRAIN", 0);
-        mnist.getImageDataFromDataBase();
+        Mnist mnist = new Mnist("TEST", 0);
+        //mnist.getImageDataFromDataBase("test");
         //System.out.println("画像:"+mnist.imagesList.size());
         //System.out.println("正解ラベル:"+mnist.labelsList.size());
         
-        mnist.showImageDataAsText(0);
+        mnist.showImageDataAsText(4999);
     }
 }

@@ -263,6 +263,7 @@ public class Matrix {
         for(int n = i*col; n<(i+1)*col; n++){
             rowVec.add(valuesList.get(n));
         }
+        
         return new Matrix(1, col, rowVec);
     }
     
@@ -429,6 +430,7 @@ public class Matrix {
         
         if((A.row-F.row+2*padding)%stride!=0 || (A.col-F.col+2*padding)%stride!=0 ){
             System.err.println("Matrixクラスのconvoluteメソッドでエラー：計算不能なパラメータを入力");
+            System.exit(0);
         }
         ArrayList<Double> mapList = new ArrayList<>();  //特徴マップの値を格納するリスト
         int mapCount = 0;                               //入力データに渡すパラメータ内の係数その1
@@ -507,5 +509,7 @@ public class Matrix {
             System.out.println(Matrix.convolute(I, F, 0, 1));
             count++;
         }
+        
+        Matrix T = Matrix.convolute(new Matrix(28, 31), new Matrix(5,5), 2, 3);
     }
 }
